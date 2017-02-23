@@ -105,7 +105,7 @@ class Payment  extends Service implements PaymentInterface{
     {
         // TODO: Implement sendPay() method.
         $data=is_array($data)?$data:json_decode(json_encode($data),true);
-        
+        dump($data);
     }
 
     /**

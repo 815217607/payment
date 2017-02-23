@@ -1,0 +1,35 @@
+{
+    "name": "eyuan/payment-wechat",
+    "version": "0.1.x-dev",
+    "description": "basement library",
+    "keywords":     ["eyuan","order", "Stcartub"],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Frank",
+            "email": "fuqixue1987@163.com"
+        }
+    ],
+    "require": {
+        "eyuan/basement": "0.1.x-dev",
+        "overtrue/wechat": "~3.1"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "@stable"
+    },
+    "autoload": {
+        "psr-4": {
+            "Eyuan\\Wechat\\Payment\\": "src/"
+        }
+    },
+    "config": {
+        "secure-http": false
+    },
+    "repositories": [
+        {
+            "type": "composer",
+            "url": "http://composer-packages.ieyuan.com"
+        }
+    ]
+}

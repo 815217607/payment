@@ -1,55 +1,41 @@
 ## 使用说明
 
 ---
-use Eyuan\Cart\CartService;
-### CartService使用方法1
+use Eyuan\Payment\Wechat;
+### Payment
 
-CartService可用的方法同laravel facade
+Payment可用的方法同laravel facade
 
 ---
+配置：
+app配置文件添加：
+providers=[
+    \Eyuan\Payment\Wechat\PaymentServiceProvider::class,
+]
+控制台执行命令：php artisan vendor:publish --tag=payment
 
-### CartService 使用方法2：
+### Payment 使用方法2：
 --
-$cart=CartService::getInstance();
+$payment=Payment::getInstance();
 --
 
-#### 添加购物车
+#### 创建统一支付订单
 ```
-    * @param  integer $goods_id 商品ID
-    * @param integer $num 商品数量
-    * @param bool $falg 是否依赖商品接口
+    $order=[
+                'user_id'=>6,
+                'id'=>62,
+                'order_no'=>'TC'.time(),
+                'order_name'=>'测试支付1元',
+                'price'=>'1',
+                'product_type'=>'1',
+                'payment_platform'=>'1',
+            ];
 
-    $cart->addCart($goods_id,$uid,$num,$falg)
-```
-
-#### 更新购物车
-```
-    * @param integer $id 购物商品数据ID
-    * @param array $data ['goods_id'=1,'uid'=>2,'num'=1]
-
-    $cart-> updateCart($data);
-```
-
-#### 获取用户购物车
-```
-    * @param integer $uid 用户ID
-    * @param integer $num 每页的数量
-
-    $cart->getCart($uid,$num);
+    $info=$payment->createOrder($order)
+     return view($info?'frontend.payment.success':'frontend.pay_error');
 ```
 
-#### 清楚购车指定商品
+#### 异步通知调用
 ```
-    * @param $ids this id or ids
-
-    $cart->delCart($ids);
-```
-#### 删除购物所有商品
-```
-    $cart->delAllCart();
-```
-
-#### 清空购物车，并释放存储
-```
-    $cart->clearCart();
+    return $payment->callback();
 ```

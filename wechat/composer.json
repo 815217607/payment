@@ -20,7 +20,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Eyuan\\Wechat\\Payment\\": "src/"
+            "Eyuan\\Payment\\Wechat": "src/"
         }
     },
     "config": {

@@ -6,7 +6,7 @@
  * Time: 上午10:34
  */
 
-namespace Eyuan\Payment;
+namespace Eyuan\Payment\Wechat;
 
 
 
@@ -16,7 +16,7 @@ interface PaymentInterface {
      * @param  $data
      * @return $order
      */
-    public  function createOrder();
+    public  function createOrder($order);
 
     /**
      * 发起支付

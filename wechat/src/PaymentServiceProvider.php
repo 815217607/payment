@@ -6,7 +6,7 @@
  * Time: 上午2:17
  */
 
-namespace Eyuan\Payment;
+namespace Eyuan\Payment\Wechat;
 
 use Illuminate\Support\ServiceProvider;
 
@@ -32,6 +32,7 @@ class PaymentServiceProvider extends ServiceProvider {
 		$this->app->singleton('payment', function () {
 			return new PaymentService;
 		});
+		$this->app->alias('Payment', 'Eyuan\Payment\PaymentService');
 	}
 
 	/**
@@ -41,7 +42,7 @@ class PaymentServiceProvider extends ServiceProvider {
 	 */
 	public function provides()
 	{
-		return [];
+		return ['Payment'];
 	}
 
 
@@ -50,7 +51,8 @@ class PaymentServiceProvider extends ServiceProvider {
 		$this->publishes([
 			__DIR__.'/../config/payment.php' => config_path('payment.php'),
 			__DIR__.'/../migrations/' => database_path('migrations'),
-		]);
+			__DIR__.'/../payment/' => resource_path('views/frontend/payment'),
+		],'payment');
 	}
 
 }

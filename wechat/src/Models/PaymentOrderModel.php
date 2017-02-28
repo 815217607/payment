@@ -1,6 +1,6 @@
 <?php
 
-namespace Eyuan\Payment\Models;
+namespace Eyuan\Payment\Wechat\Models;
 
 
 use Illuminate\Database\Eloquent\Model;
@@ -8,17 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentOrderModel extends Model
 {
 
-    //表名
     protected $table = 'payment_order';
-
-
-    /**
-     * The attributes excluded from the model's JSON form.
-     *
-     * @var array
-     */
-    protected $hidden = [
-        'id'
+    public $timestamps = true;
+    public $guarded = [];
+    public $hidden = [];
+    protected $casts = [
+        'id'=>'integer'
     ];
 
 

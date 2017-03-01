@@ -11,6 +11,7 @@ namespace Eyuan\Payment\Wechat;
 
 use EasyWeChat\Foundation\Application;
 use EasyWeChat\Payment\Order;
+use EasyWeChat\Support\Url as UrlHelper;
 
 use eyuan\basement\service\Service;
 use eyuan\basement\util\Response;
@@ -44,10 +45,19 @@ class Payment  extends Service implements PaymentInterface{
      */
     protected $trade_type='JSAPI';
 
+    /**
+     * product_type对应的支付成功业务回调函数
+     * @var array $callbacks
+     */
+    protected $callbacks = [];
+
     /*
      *是否刷卡支付
      */
     protected $micropay=false;
+
+    public $callback_success_url='/';
+    public $callback_error_url='/';
     /*
      * 支付sdk参数
      * 前面的appid什么的也得保留哦
@@ -71,9 +81,10 @@ class Payment  extends Service implements PaymentInterface{
      * @param  $data ['user_id','id','order_name','price','product_type','payment_platform']
      * @return $order
      */
-    public function createOrder($order=[])
+    public function createOrder($order=[],$callback_success_url=null,$callback_error_url=null)
     {
-
+        $this->callback_success_url=isset($callback_success_url)?$callback_success_url:$this->callback_success_url;
+        $this->callback_error_url=isset($callback_error_url)?$callback_error_url:$this->callback_error_url;
         if(!empty($order)){
             $this->order_data=$order;
         }
@@ -81,7 +92,7 @@ class Payment  extends Service implements PaymentInterface{
         // TODO: Implement createOrder() method.
         $va=Validator::make($this->order_data, [
             'user_id'=>'required',
-            'id'=>'required',
+            'product_id'=>'required',
             'order_name'=>'required',
             'price'=>'required',
             'payment_platform'=>'required',
@@ -92,8 +103,7 @@ class Payment  extends Service implements PaymentInterface{
         }
 
         $data=[
-
-            'product_id'=>$this->order_data['id'],
+            'product_id'=>$this->order_data['product_id'],
             'order_name'=>$this->order_data['order_name'],
             'price'=>$this->order_data['price'],
             'payment_money'=>$this->order_data['price'],
@@ -124,7 +134,7 @@ class Payment  extends Service implements PaymentInterface{
         // TODO: Implement sendPay() method.
         $data=is_array($data)?$data:json_decode(json_encode($data),true);
 //        $wechat=WechatService::getInstance();
-        return $this->send($data);
+        return $this->startWechatPay($data);
     }
 
     /**
@@ -155,13 +165,13 @@ class Payment  extends Service implements PaymentInterface{
     }
 
 
-
     /**
-     * 创建支付订单发起支付
-     * @param $data ['order_name','order_no','price']
+     * 对某一个支付订单发起微信支付
+     * @param $data payment order ['order_name','order_no','price']
+     * @param bool $isUnifiedOrder 是否是统一支付（公众号支付等等）
      * @return \EasyWeChat\Support\Collection
      */
-    public function send($data){
+    public function startWechatPay($data, $isUnifiedOrder=true){
         $openid=Auth::guard('member')->user()->username;
 
         $app=new Application($this->options);
@@ -178,14 +188,39 @@ class Payment  extends Service implements PaymentInterface{
         $order=new Order($attributes);
 
 
-        $result= $this->micropay?$luckyMoney->pay($order):$luckyMoney->prepare($order);
+        $result= $isUnifiedOrder ? $luckyMoney->prepare($order) : $luckyMoney->pay($order);
 
         if ($result->return_code == 'SUCCESS' && $result->result_code == 'SUCCESS'){
 
-            return true;
-//            $prepayId = $result->prepay_id;
+            /*
+             *获取支付调取参数
+             */
+            $payment=$luckyMoney->configForAppPayment($result->prepay_id);
+
+            /*
+             * 共享收货地址
+             * */
+            $time=time();
+            $editAddress=[
+                "addrSign" =>$result->sign,
+                "signType" => "sha1",
+                "scope" => "jsapi_address",
+                "appId" => $result->appid,
+                "timeStamp" => "$time",
+                "nonceStr" => "123456",
+            ];
+
+            return  [
+                'jsApiParameters'=>json_encode($payment),
+                'editAddress'=>json_encode($editAddress),
+                'fee'=>$data['price'],
+                'tag'=>$data['order_no'],
+                'callback_success_url'=>  $this->callback_success_url,
+                'callback_error_url'=>  $this->callback_error_url,
+            ];
+
         }else{
-            return false;
+            return ['result_code'=>$result->result_code,'err_code'=>$result->err_code,'err_code_des'=>$result->err_code_des];
         }
     }
 
@@ -244,12 +279,28 @@ class Payment  extends Service implements PaymentInterface{
                 $order->status = 'paid_fail';
             }
             $order->save(); // 保存订单
+
+            $callback = array_get($this->callbacks,$order->product_type);
+            if($callback) {
+                call_user_func($callback, $order);
+            }
+
             // 你的逻辑
             return true; //  返回处理完成
         });
         Log::info($response);
+
+
+
         return $response;
     }
 
-
+    /**
+     * 设置product_type对应的支付成功业务回调函数
+     * @param string $product_type
+     * @param \Closure|array $callback 回调函数，  函数参数 $1: Payment
+     */
+    public function setCallback($product_type, $callback) {
+        $this->callbacks[$product_type] = $callback;
+    }
 }

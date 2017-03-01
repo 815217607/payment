@@ -50,5 +50,14 @@ createOrder($peymentorder,'成功后重定向地址','支付失败后重定向�
 
 #### 异步通知调用
 ```
+    $payment->setCallback('order', function($paymentOrder){
+              订单业务处理逻辑
+              });
     return $payment->callback();
 ```
+
+#### 同步通知
+    $payment->setCallback('order', function($paymentOrder){
+              订单业务处理逻辑
+              });
+   return $payment-> getPayBack($tag);

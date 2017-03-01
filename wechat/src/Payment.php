@@ -259,33 +259,35 @@ class Payment  extends Service implements PaymentInterface{
         $response = $app->payment->handleNotify(function($notify, $successful){
 
             $order=PaymentOrderModel::query()->where('trade_no',$notify->transaction_id)->lockForUpdate()->find();
-            if (!$order) { // 如果订单不存在
-                return 'Order not exist.'; // 告诉微信，我已经处理完了，订单没找到，别再通知我了
-            }
+            return DB::transaction(function() use($order,$successful){
+                if (!$order) { // 如果订单不存在
+                    return 'Order not exist.'; // 告诉微信，我已经处理完了，订单没找到，别再通知我了
+                }
 
-            // 如果订单存在
-            // 检查订单是否已经更新过支付状态
-            if ($order->paid_at) { // 假设订单字段“支付时间”不为空代表已经支付
-                return true; // 已经支付成功了就不再更新了
-            }
+                // 如果订单存在
+                // 检查订单是否已经更新过支付状态
+                if ($order->paid_at) { // 假设订单字段“支付时间”不为空代表已经支付
+                    return true; // 已经支付成功了就不再更新了
+                }
 
-            // 用户是否支付成功
-            if ($successful) {
-                // 不是已经支付状态则修改为已经支付状态
-                $order->paid_at = time(); // 更新支付时间为当前时间
-                $order->status = 'paid';
-            } else { // 用户支付失败
-                $order->status = 'paid_fail';
-            }
-            $order->save(); // 保存订单
+                // 用户是否支付成功
+                if ($successful) {
+                    // 不是已经支付状态则修改为已经支付状态
+                    $order->paid_at = time(); // 更新支付时间为当前时间
+                    $order->status = 'paid';
+                } else { // 用户支付失败
+                    $order->status = 'paid_fail';
+                }
+                $order->save(); // 保存订单
 
-            $callback = array_get($this->callbacks,$order->product_type);
-            if($callback) {
-                call_user_func($callback, $order);
-            }
+                $callback = array_get($this->callbacks,$order->product_type);
+                if($callback) {
+                    call_user_func($callback, $order);
+                }
 
-            // 你的逻辑
-            return true; //  返回处理完成
+                // 你的逻辑
+                return true; //  返回处理完成
+            });
         });
         Log::info($response);
 
@@ -309,25 +311,27 @@ class Payment  extends Service implements PaymentInterface{
         $orderNo = $order_no;
         $result= $payment->query($orderNo);
         Log::info($result);
-
+        $payment_order=PaymentOrderModel::query()->where('order_no',$order_no)->find();
         if ($result->return_code == 'SUCCESS' && $result->result_code == 'SUCCESS'){
-            $payment_order=PaymentOrderModel::query()->where('order_no',$order_no)->lockForUpdate()->find();
-            if(empty( $payment_order->paid_at)){
-                $payment_order->paid_at=time();
-                $payment_order->status='paid';
-                $payment_order->save();
 
-                $callback = array_get($this->callbacks,$payment_order->product_type);
-                if($callback) {
-                    call_user_func($callback, $payment_order);
+            return DB::transaction(function() use($payment_order){
+                $payment_order=PaymentOrderModel::query()->where('id',$payment_order->id)->lockForUpdate()->find();
+                if(empty( $payment_order->paid_at)){
+                    $payment_order->paid_at=time();
+                    $payment_order->status='paid';
+                    $payment_order->save();
+
+                    $callback = array_get($this->callbacks,$payment_order->product_type);
+                    if($callback) {
+                        call_user_func($callback, $payment_order);
+                    }
+                    return true;
+                }else{
+                    $payment_order->status='paid';
+                    $payment_order->save();
+                    return  false;
                 }
-                return true;
-            }else{
-                $payment_order->status='paid';
-                $payment_order->save();
-                return  false;
-            }
-
+            });
 
        }else{
             return ['result_code'=>$result->result_code,'err_code'=>$result->err_code,'err_code_des'=>$result->err_code_des];

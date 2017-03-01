@@ -258,8 +258,7 @@ class Payment  extends Service implements PaymentInterface{
         $app=new Application($this->options);
         $response = $app->payment->handleNotify(function($notify, $successful){
 
-            $payment=Payment::getInstance();
-            $order=$payment->queryFind($notify->transaction_id);
+            $order=PaymentOrderModel::query()->where('trade_no',$notify->transaction_id)->lockForUpdate()->find();
             if (!$order) { // 如果订单不存在
                 return 'Order not exist.'; // 告诉微信，我已经处理完了，订单没找到，别再通知我了
             }
@@ -291,7 +290,6 @@ class Payment  extends Service implements PaymentInterface{
         Log::info($response);
 
 
-
         return $response;
     }
 
@@ -302,5 +300,37 @@ class Payment  extends Service implements PaymentInterface{
      */
     public function setCallback($product_type, $callback) {
         $this->callbacks[$product_type] = $callback;
+    }
+
+
+    public function getPayBack($order_no){
+        $app=new Application($this->options);
+        $payment = $app->payment;
+        $orderNo = $order_no;
+        $result= $payment->query($orderNo);
+        Log::info($result);
+
+        if ($result->return_code == 'SUCCESS' && $result->result_code == 'SUCCESS'){
+            $payment_order=PaymentOrderModel::query()->where('order_no',$order_no)->lockForUpdate()->find();
+            if(empty( $payment_order->paid_at)){
+                $payment_order->paid_at=time();
+                $payment_order->status='paid';
+                $payment_order->save();
+
+                $callback = array_get($this->callbacks,$payment_order->product_type);
+                if($callback) {
+                    call_user_func($callback, $payment_order);
+                }
+                return true;
+            }else{
+                $payment_order->status='paid';
+                $payment_order->save();
+                return  false;
+            }
+
+
+       }else{
+            return ['result_code'=>$result->result_code,'err_code'=>$result->err_code,'err_code_des'=>$result->err_code_des];
+        }
     }
 }

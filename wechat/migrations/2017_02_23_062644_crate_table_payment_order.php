@@ -20,7 +20,7 @@ class CrateTablePaymentOrder extends Migration
          * price 订单金额
          * payment_money 订单支付金额
          * payment_platform 支付类型
-         * product_type 订单类型
+         * product_type 订单业务类型
          * status 支付状态
          * buyer_id 卖家用户号
          * product_id 订单ID
@@ -39,7 +39,7 @@ class CrateTablePaymentOrder extends Migration
             $table->decimal('price',15,2);
             $table->decimal('payment_money',14,2)->nullable();
             $table->tinyInteger('payment_platform')->nullble();
-            $table->tinyInteger('product_type')->nullable();
+            $table->char('product_type',50)->nullable();
             $table->char('status',50)->nullable();
             $table->string('buyer_id',50)->nullable();
             $table->integer('product_id');
